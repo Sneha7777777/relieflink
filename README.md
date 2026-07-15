@@ -107,30 +107,4 @@ npm run test:e2e       # Playwright e2e (register → post request → verify)
 CI runs both against a real Postgres service container on every PR (see
 `.github/workflows/ci.yml`).
 
-## Deployment
 
-The GitHub Actions workflow lints, type-checks, tests, and builds on every
-PR, then deploys to Vercel on merge to `main`. To wire this up yourself:
-
-1. Create a project on [Vercel](https://vercel.com) linked to this repo.
-2. Add a managed Postgres database (Vercel Postgres, Neon, or Supabase all
-   work) and set `DATABASE_URL` in Vercel's environment variables.
-3. Set `AUTH_SECRET`, `NEXTAUTH_URL` (your production URL), and
-   `OPENAI_API_KEY` in Vercel's environment variables.
-4. Add `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID` as GitHub repo
-   secrets so the Actions workflow can deploy.
-5. Run `npx prisma migrate deploy` against production (or let Vercel's
-   build step do it — `vercel.json`'s build command already runs
-   `prisma generate`; add a release-phase migration step for your chosen
-   host if it supports one).
-
-## Before you submit
-
-- Fill in your real name, GitHub, and LinkedIn URLs in
-  `src/components/Footer.tsx` (marked with a `TODO` comment).
-- Update `.env` with your own AI provider key — this repo's demo prompts
-  work with any OpenAI-compatible endpoint, including Groq (swap
-  `baseURL`) or Gemini (swap the `@ai-sdk/openai` import for the Gemini
-  provider package).
-- Run `npm run build` once locally against a real database to confirm a
-  clean production build before deploying.
