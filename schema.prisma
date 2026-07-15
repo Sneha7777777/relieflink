@@ -1,0 +1,132 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  REQUESTER   // person needing help
+  VOLUNTEER   // person/org offering help
+  COORDINATOR // admin who oversees matching & verifies requests
+}
+
+enum UrgencyLevel {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum RequestStatus {
+  OPEN
+  MATCHED
+  IN_PROGRESS
+  FULFILLED
+  CANCELLED
+}
+
+enum ResourceCategory {
+  FOOD
+  WATER
+  SHELTER
+  MEDICAL
+  CLOTHING
+  TRANSPORT
+  RESCUE
+  OTHER
+}
+
+model User {
+  id            String   @id @default(cuid())
+  name          String
+  email         String   @unique
+  passwordHash  String
+  role          Role     @default(REQUESTER)
+  phone         String?
+  organization  String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  requests      HelpRequest[]  @relation("RequesterRequests")
+  offers        ResourceOffer[] @relation("VolunteerOffers")
+  matchesAsCoordinator Match[]  @relation("CoordinatorMatches")
+
+  @@index([email])
+  @@index([role])
+}
+
+model HelpRequest {
+  id             String        @id @default(cuid())
+  requester      User          @relation("RequesterRequests", fields: [requesterId], references: [id], onDelete: Cascade)
+  requesterId    String
+
+  title          String
+  description    String        @db.Text
+  category       ResourceCategory
+  headcount      Int           @default(1)
+  location       String
+  latitude       Float?
+  longitude      Float?
+  status         RequestStatus @default(OPEN)
+
+  // AI-derived fields
+  urgency        UrgencyLevel  @default(MEDIUM)
+  aiUrgencyScore Int?          // 1-10 score from AI triage
+  aiSummary      String?       @db.Text
+  aiRationale    String?       @db.Text
+
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  matches        Match[]
+
+  @@index([status])
+  @@index([urgency])
+  @@index([category])
+}
+
+model ResourceOffer {
+  id            String   @id @default(cuid())
+  volunteer     User     @relation("VolunteerOffers", fields: [volunteerId], references: [id], onDelete: Cascade)
+  volunteerId   String
+
+  title         String
+  description   String   @db.Text
+  category      ResourceCategory
+  quantity      Int      @default(1)
+  location      String
+  latitude      Float?
+  longitude     Float?
+  available     Boolean  @default(true)
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  matches       Match[]
+
+  @@index([available])
+  @@index([category])
+}
+
+model Match {
+  id            String   @id @default(cuid())
+  request       HelpRequest    @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  requestId     String
+  offer         ResourceOffer  @relation(fields: [offerId], references: [id], onDelete: Cascade)
+  offerId       String
+  coordinator   User?          @relation("CoordinatorMatches", fields: [coordinatorId], references: [id])
+  coordinatorId String?
+
+  aiConfidence  Float?   // 0-1 AI match confidence
+  aiReasoning   String?  @db.Text
+  confirmed     Boolean  @default(false)
+
+  createdAt     DateTime @default(now())
+
+  @@unique([requestId, offerId])
+  @@index([requestId])
+  @@index([offerId])
+}
